@@ -23,4 +23,7 @@ The project is currently only text but the idea is to make it like terminal draw
 
 Currently, the most difficult (for me as a rust beginner) features are implemented but theres a long todo there, you can see the full command list using `termpet --help`
 
-Enjoy playing with your terminal pet!
+To install run `cargo install termpet`, init your pet and add `termpet --greet` to your shell init file (like .bashrc or .zshrc) to have it greet you every time you open a terminal.
+
+
+Enjoy your terminal pet!

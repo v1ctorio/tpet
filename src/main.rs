@@ -1,15 +1,14 @@
 use clap::Parser;
 use pickledb::{PickleDb, PickleDbDumpPolicy, SerializationMethod};
 use rand::Rng;
-use std::{env, error::Error, fmt::Debug, fs::File, io, path::{self, PathBuf}, process::{Command, Output}, string, time::{SystemTime, UNIX_EPOCH}};
-use chrono::{DateTime, Datelike, NaiveDateTime};
+use std::{env, fmt::Debug, io, path,  time::{SystemTime, UNIX_EPOCH}};
+use chrono::{DateTime, Datelike, };
 
 const DEFAULT_PET_DIR: &str = "~/.config/termpet/first.pet";
 
 
 #[derive(Debug)]
 enum FileError {
-    ErrorOpening,
     DumpError,
     AlreadyExists
 }
@@ -58,7 +57,7 @@ struct Pet {
 impl Pet {
     fn init(&mut self) -> Result<(), FileError> {
         
-        let mut db = &mut self.db;
+        let  db = &mut self.db;
         db.set("name", &self.name);
         db.set("birth", &self.birth);
         db.set("hunger", &self.hunger);
