@@ -1,5 +1,6 @@
 use clap::Parser;
 use pickledb::{PickleDb, PickleDbDumpPolicy, SerializationMethod};
+use rand::Rng;
 use std::{env, error::Error, fmt::Debug, fs::File, io, path::{self, PathBuf}, process::{Command, Output}, string, time::{SystemTime, UNIX_EPOCH}};
 use chrono::{DateTime, Datelike, NaiveDateTime};
 
@@ -18,24 +19,29 @@ enum FileError {
 struct Args {
 
 
-    /// Number of times to greet
-    #[arg(short, long, default_value_t = 1)]
-    count: u8,
-
+    /// Show information about your pet.
     #[arg(short, long)]
     info: bool,
 
+    /// Initialize a new pet.
     #[arg(long)]
     init: bool,
 
+    /// Path to the petfile if using a custom one, defaults to ~/.config/first.pet TPET_FILE_PATH env. 
     #[arg(long)]
     path: Option<String>,
 
+    /// Play a little with your pet!.
     #[arg(short, long)]
     play: bool,
 
+    /// Feed your pet!.
     #[arg(short, long)]
-    feed: bool
+    feed: bool,
+
+    /// Check on your pet.
+    #[arg(short, long)]
+    greet: bool
 
 }
 
@@ -163,9 +169,30 @@ fn main() {
             }
         }
     }
+    if args.greet {
+        greet_pet(pet);
+    }
 
 }
 
+fn greet_pet(pet: Pet) {
+    let hungry_phrases = vec!["Felling really hungry rn!", "I want food!", "I'm starving! (", "I'm famished!"];
+    let bored_phrases = vec!["I'm bored!", "I want to play!", "I'm tired of doing nothing!", "I'm feeling lonely!"];
+    let average_phrases = vec!["I'm feeling good!", "How you doing?", "I'm fine, thanks for asking!", "Remember to check on me often!"];
+    let advices = vec!["Remember to stage your files before commiting!", "Remember to push your changes!", "Remember to pull before pushing!", "Remember to drink some water!"];
+
+    if pet.hunger > 50 {
+        println!("{}", hungry_phrases[rand::thread_rng().gen_range(0..hungry_phrases.len())]);
+    } else if pet.happiness < 50 {
+        println!("{}", bored_phrases[rand::thread_rng().gen_range(0..bored_phrases.len())]);
+    } else {
+        if rand::thread_rng().gen_bool(0.5) {
+            println!("{}", average_phrases[rand::thread_rng().gen_range(0.. average_phrases.len())]);
+        } else {
+            println!("{}", advices[rand::thread_rng().gen_range(0..advices.len())]);
+        }
+    } 
+}
 
 fn load_pet(db: PickleDb) -> Pet {
     let name: String = db.get::<String>("name").unwrap();
