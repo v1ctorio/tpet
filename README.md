@@ -11,7 +11,7 @@ The project is currently only text but the idea is to make it like terminal draw
 - [x] Add a command to play with the pet and feed it
 - [x] Add a way to see the pet's stats
 - [ ] Add minigames like rock paper scissors, asking questions (input a valid tar command for example), guess the number... to feed/play with the pet
-- [ ] Make the pet stats lower when real time passes (calculates the time between the last time the pet was interacted and the current time)
+- [x] Make the pet stats lower when real time passes (calculates the time between the last time the pet was interacted and the current time)
 - [ ] Add a way to change the pet's name
 - [ ] Add a way to change the pet's appearance
 - [ ] Set graphical pet appearance
