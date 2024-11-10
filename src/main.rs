@@ -31,6 +31,12 @@ struct Args {
     #[arg(long)]
     path: Option<String>,
 
+    #[arg(short, long)]
+    play: bool,
+
+    #[arg(short, long)]
+    feed: bool
+
 }
 
 struct Pet {
@@ -40,6 +46,60 @@ struct Pet {
     happiness: u8,
     last_save: i64,
     path: String, //its a full path
+    db: PickleDb
+}
+
+impl Pet {
+    fn init(&mut self) -> Result<(), FileError> {
+        
+        let mut db = &mut self.db;
+        db.set("name", &self.name);
+        db.set("birth", &self.birth);
+        db.set("hunger", &self.hunger);
+        db.set("happiness", &self.happiness);
+        db.set("last_save", &self.last_save);
+        db.set("path", &self.path);
+        match db.dump() {
+            Ok(()) => return Ok(()),
+            Err(_) => return Err(FileError::DumpError)
+        }
+    }
+    fn feed(&mut self, amount: i8) -> Result<(), FileError> {
+
+        let mut updated_hunger: i8 = self.hunger as i8 + amount;
+        if updated_hunger < 0 {
+            updated_hunger = 0;
+        } else if updated_hunger > 100 {
+            updated_hunger = 100;
+        }
+        let updated_hunger = updated_hunger as u8;
+
+        let db = &mut self.db;
+        db.set("hunger", &updated_hunger);
+        db.set("last_save", &unix_now());
+        match db.dump() {
+            Ok(()) => return Ok(()),
+            Err(_) => return Err(FileError::DumpError)
+        }
+    }
+    fn play(&mut self, amount: i8) -> Result<(), FileError> {
+
+        let mut updated_happiness: i8 = self.happiness as i8 + amount;
+        if updated_happiness < 0 {
+            updated_happiness = 0;
+        } else if updated_happiness > 100 {
+            updated_happiness = 100;
+        }
+        let updated_happiness = updated_happiness as u8;
+
+        let db = &mut self.db;
+        db.set("happiness", &updated_happiness);
+        db.set("last_save", &unix_now());
+        match db.dump() {
+            Ok(()) => return Ok(()),
+            Err(_) => return Err(FileError::DumpError)
+        }
+    }
 }
 
 fn main() {
@@ -67,49 +127,80 @@ fn main() {
     }
 
     let db = open_db(DB_PATH);
+    let mut pet = load_pet(db);
     if args.info {
-        let name: String = db.get::<String>("name").unwrap();
-        let birth = db.get::<i64>("birth").unwrap();
-        let hunger = db.get::<u8>("hunger").unwrap();
-        let happiness = db.get::<u8>("happiness").unwrap();
-        let last_save = db.get::<i64>("last_save").unwrap();
 
-        let difference_in_seconds = SystemTime::now().duration_since(UNIX_EPOCH)
-            .expect("Time went backwards")
-            .as_secs() as i64 - last_save ;
+        let difference_in_seconds = unix_now()  - &pet.last_save ;
 
-        println!("Pet {} was born at {}, it's hunger is at {} and it's happiness is at {}. Last save was {} ago", name, timestamp_to_dmy(birth), hunger, happiness, seconds_to_dhms(difference_in_seconds));
+        println!("Pet {} was born at {}, it's hunger is at {} and it's happiness is at {}. Last save was {} ago", &pet.name, timestamp_to_dmy(pet.birth), &pet.hunger, &pet.happiness, seconds_to_dhms(difference_in_seconds));
+    }
+
+    let interactable =  pet.last_save - unix_now() < 60;
+
+    if args.play {
+
+        if !interactable {
+            println!("{} had too much for for now! Give them a break", &pet.name);
+            return;
+        }
+
+        match pet.play(10) {
+            Ok(()) => {
+                println!("{} feels joy now! happiness increased by 10", &pet.name);
+            },
+            Err(e) => {
+                println!("Error playing with pet: {:?}", e);
+            }
+        }
+    }
+    if args.feed {
+        match pet.feed(-10) {
+            Ok(()) => {
+                println!("{} is full right now! hunger decreased by 10", &pet.name);
+            },
+            Err(e) => {
+                println!("Error feeding pet: {:?}", e);
+            }
+        }
     }
 
 }
 
+
+fn load_pet(db: PickleDb) -> Pet {
+    let name: String = db.get::<String>("name").unwrap();
+    let birth = db.get::<i64>("birth").unwrap();
+    let hunger = db.get::<u8>("hunger").unwrap();
+    let happiness = db.get::<u8>("happiness").unwrap();
+    let last_save = db.get::<i64>("last_save").unwrap();
+    //let path = db.get::<String>("path").unwrap();
+    let path = String::from("value");
+
+    Pet {
+        name,
+        birth,
+        hunger,
+        happiness,
+        last_save,
+        path,
+        db
+    }
+}
+
 fn create_pet(path: String) -> Result<Pet,FileError> {
 
-  
-
-
-
-    let stdin = io::stdin();
     let mut name = String::new();
-    let hunger = 100;
-    let happiness = 100;
-    let current_unix_timestamp:u64 = SystemTime::now().duration_since(UNIX_EPOCH)
-        .expect("Time went backwards")
-        .as_secs().into();
+    let hunger = 0;
+    let happiness = 100; 
+    let current_unix_timestamp:i64 = unix_now();
 
 
-    println!("What is your pet's name?");
+    println!("What is your pet's name? \n > ");
+    let stdin = io::stdin();
+
     stdin.read_line(&mut name).unwrap();
     let name = name.trim();
 
-    let pet = Pet {
-        name: name.to_string(),
-        birth: current_unix_timestamp as i64,
-        hunger,
-        happiness,
-        last_save: current_unix_timestamp as i64,
-        path: path.clone()
-    };
 
     // Check if file exists
     let path = path::Path::new(&path);
@@ -117,15 +208,20 @@ fn create_pet(path: String) -> Result<Pet,FileError> {
         return Err(FileError::AlreadyExists);
     }
 
-    let mut db = PickleDb::new(&path, PickleDbDumpPolicy::DumpUponRequest, SerializationMethod::Json);
-    db.set("name", &pet.name);
-    db.set("birth", &pet.birth);
-    db.set("hunger", &pet.hunger);
-    db.set("happiness", &pet.happiness);
-    db.set("last_save", &pet.last_save);
+    let db = PickleDb::new(&path, PickleDbDumpPolicy::DumpUponRequest, SerializationMethod::Json);
+    let mut pet = Pet {
+        name: name.to_string(),
+        birth: current_unix_timestamp as i64,
+        hunger,
+        happiness,
+        last_save: current_unix_timestamp as i64,
+        path: path.to_str().unwrap().to_string(),
+        db
+    };
+
     
     //db.dump() or return dumperror in the function
-    match db.dump() {
+    match pet.init() {
         Ok(()) => return Ok(pet),
         Err(_) => return Err(FileError::DumpError)
     };
@@ -135,10 +231,10 @@ fn create_pet(path: String) -> Result<Pet,FileError> {
 
 fn open_db(path: String) -> PickleDb {
     let DB_PATH = path::Path::new(&path);
-
-    println!("DB_PATH: {}", DB_PATH.display());
-
-    PickleDb::load(DB_PATH, PickleDbDumpPolicy::AutoDump, SerializationMethod::Json).expect(&format!("Error loadind the petfile at {}",DB_PATH.display().to_string()))
+    if !DB_PATH.exists() {
+        panic!("Petfile not found at {}", DB_PATH.display().to_string());
+    }
+    PickleDb::load(DB_PATH, PickleDbDumpPolicy::DumpUponRequest, SerializationMethod::Json).expect(&format!("Error loadind the petfile at {}",DB_PATH.display().to_string()))
 }
 
 fn expand_home(mut path: String) -> String {
@@ -172,3 +268,5 @@ fn timestamp_to_dmy(timestamp: i64) -> String {
     
     format!("{:02}-{:02}-{}", day, month, year)
 }
+
+#[inline(always)] fn unix_now() -> i64 { SystemTime::now().duration_since(UNIX_EPOCH).expect("Time went backwards").as_secs() as i64 }
