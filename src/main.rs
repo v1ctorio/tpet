@@ -4,7 +4,7 @@ use rand::Rng;
 use std::{env, error::Error, fmt::Debug, fs::File, io, path::{self, PathBuf}, process::{Command, Output}, string, time::{SystemTime, UNIX_EPOCH}};
 use chrono::{DateTime, Datelike, NaiveDateTime};
 
-const DEFAULT_PET_DIR: &str = "~/.config/first.pet";
+const DEFAULT_PET_DIR: &str = "~/.config/termpet/first.pet";
 
 
 #[derive(Debug)]
@@ -27,7 +27,7 @@ struct Args {
     #[arg(long)]
     init: bool,
 
-    /// Path to the petfile if using a custom one, defaults to ~/.config/first.pet TPET_FILE_PATH env. 
+    /// Path to the petfile if using a custom one, defaults to ~/.config/termpet/first.pet TPET_FILE_PATH env. 
     #[arg(long)]
     path: Option<String>,
 
@@ -120,6 +120,11 @@ fn main() {
     }
     let DB_PATH = expand_home(DB_PATH.unwrap());
 
+    if std::env::args().len() == 1 {
+        println!("No arguments provided, try --help to get the full list. To get started, use --init");
+        return;
+    }
+
     if args.init {
         match create_pet(DB_PATH) {
             Ok(pet) => {
@@ -141,6 +146,7 @@ fn main() {
         println!("Pet {} was born at {}, it's hunger is at {} and it's happiness is at {}. Last save was {} ago", &pet.name, timestamp_to_dmy(pet.birth), &pet.hunger, &pet.happiness, seconds_to_dhms(difference_in_seconds));
     }
 
+    update_pet(&mut pet);
     let interactable =  pet.last_save - unix_now() < 60;
 
     if args.play {
@@ -173,6 +179,16 @@ fn main() {
         greet_pet(pet);
     }
 
+}
+
+// Update the pet stats based on the time passed since last save
+fn update_pet(pet: &mut Pet) {
+    let difference_in_seconds = unix_now() - pet.last_save;
+    let hungry = (difference_in_seconds / 600) as i8;
+    let joy = (difference_in_seconds / 60) as i8;
+
+    pet.feed(hungry).expect("Fatal error updating pet");
+pet.play(-joy).expect("Fatal error updating pet");
 }
 
 fn greet_pet(pet: Pet) {
@@ -228,6 +244,7 @@ fn create_pet(path: String) -> Result<Pet,FileError> {
     stdin.read_line(&mut name).unwrap();
     let name = name.trim();
 
+    println!("Creating pet {} at {}", name, &path);
 
     // Check if file exists
     let path = path::Path::new(&path);

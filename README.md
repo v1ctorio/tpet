@@ -1,5 +1,5 @@
 # TermPet
-
+`termpet`
 TermPet is a simple terminal game where you have a virtual pet cow that you need to play with and feed to keep it happy and healthy.
 
 The idea is that you add it to your shell init and it greets you (and tells you if it wants to play or eat) every time you open a new terminal.
@@ -19,7 +19,8 @@ The project is currently only text but the idea is to make it like terminal draw
 - [ ] Add VHS gifs to this readme
 - [ ] Package/make binaries
 - [ ] Load customs phrases from files/teach pets phrases
+- [ ] Check windows compatibility
 
-Currently, the most difficult (for me as a rust beginner) features are implemented but theres a long todo there, you can see the full command list
+Currently, the most difficult (for me as a rust beginner) features are implemented but theres a long todo there, you can see the full command list using `termpet --help`
 
-Enjoy playing with your virtual pet!
+Enjoy playing with your terminal pet!
