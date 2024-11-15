@@ -3,7 +3,7 @@ name = "termpet"
 description = "Simple terminal CLI game to take care of a virtual terminal pet, in development."
 repository = "https://github.com/v1ctorio/tpet"
 
-version = "0.0.1"
+version = "0.0.2"
 edition = "2021"
 license = "MIT"
 

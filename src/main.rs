@@ -1,11 +1,11 @@
+#![allow(unused_must_use)]
 use clap::Parser;
 use pickledb::{PickleDb, PickleDbDumpPolicy, SerializationMethod};
 use rand::Rng;
-use std::{env, fmt::Debug, io, path,  time::{SystemTime, UNIX_EPOCH}};
+use std::{env, fmt::Debug, io::{self, Write}, path,  time::{SystemTime, UNIX_EPOCH}};
 use chrono::{DateTime, Datelike, };
 
 const DEFAULT_PET_DIR: &str = "~/.config/termpet/first.pet";
-
 
 #[derive(Debug)]
 enum FileError {
@@ -58,12 +58,12 @@ impl Pet {
     fn init(&mut self) -> Result<(), FileError> {
         
         let  db = &mut self.db;
-        db.set("name", &self.name);
-        db.set("birth", &self.birth);
-        db.set("hunger", &self.hunger);
-        db.set("happiness", &self.happiness);
-        db.set("last_save", &self.last_save);
-        db.set("path", &self.path);
+        let _ = db.set("name", &self.name);
+        let _ = db.set("birth", &self.birth);
+        let _ = db.set("hunger", &self.hunger);
+        let _ = db.set("happiness", &self.happiness);
+        let _ = db.set("last_save", &self.last_save);
+        let _ = db.set("path", &self.path);
         match db.dump() {
             Ok(()) => return Ok(()),
             Err(_) => return Err(FileError::DumpError)
@@ -81,7 +81,7 @@ impl Pet {
 
         let db = &mut self.db;
         db.set("hunger", &updated_hunger);
-        db.set("last_save", &unix_now());
+        let _ = db.set("last_save", &unix_now());
         match db.dump() {
             Ok(()) => return Ok(()),
             Err(_) => return Err(FileError::DumpError)
@@ -98,8 +98,8 @@ impl Pet {
         let updated_happiness = updated_happiness as u8;
 
         let db = &mut self.db;
-        db.set("happiness", &updated_happiness);
-        db.set("last_save", &unix_now());
+        let _ = db.set("happiness", &updated_happiness);
+        let _ = db.set("last_save", &unix_now());
         match db.dump() {
             Ok(()) => return Ok(()),
             Err(_) => return Err(FileError::DumpError)
@@ -130,7 +130,11 @@ fn main() {
                 println!("Pet created at {} in {}, it's name is {:?}", pet.birth,pet.path, pet.name);
             },
             Err(e) => {
-                println!("Error creating pet: {:?}", e);
+                match e {
+                    FileError::AlreadyExists => {println!("Petfile already exists at specified directory.");},
+                    _ => {println!("Error creating pet: {:?}", e);}
+                }
+                    
             }
         };
         return;
@@ -145,7 +149,7 @@ fn main() {
         println!("Pet {} was born at {}, it's hunger is at {} and it's happiness is at {}. Last save was {} ago", &pet.name, timestamp_to_dmy(pet.birth), &pet.hunger, &pet.happiness, seconds_to_dhms(difference_in_seconds));
     }
 
-    update_pet(&mut pet);
+    //TODO update_pet(&mut pet);
     let interactable =  pet.last_save - unix_now() < 60;
 
     if args.play {
@@ -182,20 +186,22 @@ fn main() {
 
 // Update the pet stats based on the time passed since last save
 fn update_pet(pet: &mut Pet) {
+    todo!("This is crap and doesn't even work");
     let difference_in_seconds = unix_now() - pet.last_save;
     let hungry = (difference_in_seconds / 600) as i8;
     let joy = (difference_in_seconds / 60) as i8;
 
     pet.feed(hungry).expect("Fatal error updating pet");
-pet.play(-joy).expect("Fatal error updating pet");
+    pet.play(-joy).expect("Fatal error updating pet");
 }
 
 fn greet_pet(pet: Pet) {
-    let hungry_phrases = vec!["Felling really hungry rn!", "I want food!", "I'm starving! (", "I'm famished!"];
+    let mut hungry_phrases = vec!["Felling really hungry rn!", "I want food!", "I'm starving! (", "I'm famished!"];
     let bored_phrases = vec!["I'm bored!", "I want to play!", "I'm tired of doing nothing!", "I'm feeling lonely!"];
     let average_phrases = vec!["I'm feeling good!", "How you doing?", "I'm fine, thanks for asking!", "Remember to check on me often!"];
     let advices = vec!["Remember to stage your files before commiting!", "Remember to push your changes!", "Remember to pull before pushing!", "Remember to drink some water!"];
 
+    //hungry_phrases.append("other");
     if pet.hunger > 50 {
         println!("{}", hungry_phrases[rand::thread_rng().gen_range(0..hungry_phrases.len())]);
     } else if pet.happiness < 50 {
@@ -215,8 +221,7 @@ fn load_pet(db: PickleDb) -> Pet {
     let hunger = db.get::<u8>("hunger").unwrap();
     let happiness = db.get::<u8>("happiness").unwrap();
     let last_save = db.get::<i64>("last_save").unwrap();
-    //let path = db.get::<String>("path").unwrap();
-    let path = String::from("value");
+    let path = db.get::<String>("path").unwrap();
 
     Pet {
         name,
@@ -237,7 +242,8 @@ fn create_pet(path: String) -> Result<Pet,FileError> {
     let current_unix_timestamp:i64 = unix_now();
 
 
-    println!("What is your pet's name? \n > ");
+    print!("What is your pet's name? \n > ");
+    io::stdout().flush().unwrap();
     let stdin = io::stdin();
 
     stdin.read_line(&mut name).unwrap();
@@ -249,6 +255,11 @@ fn create_pet(path: String) -> Result<Pet,FileError> {
     let path = path::Path::new(&path);
     if path.exists() {
         return Err(FileError::AlreadyExists);
+    }
+
+    let parent_dir = path.parent().unwrap();
+    if !parent_dir.exists() {
+        std::fs::create_dir_all(parent_dir).unwrap();
     }
 
     let db = PickleDb::new(&path, PickleDbDumpPolicy::DumpUponRequest, SerializationMethod::Json);
@@ -313,3 +324,7 @@ fn timestamp_to_dmy(timestamp: i64) -> String {
 }
 
 #[inline(always)] fn unix_now() -> i64 { SystemTime::now().duration_since(UNIX_EPOCH).expect("Time went backwards").as_secs() as i64 }
+
+fn load_vec_from_text (text: &str) -> Vec<String> {
+    text.replace("\n","").split("|").map(|s| s.to_string()).collect()
+}

@@ -27,3 +27,5 @@ To install run `cargo install termpet`, init your pet and add `termpet --greet` 
 
 
 Enjoy your terminal pet!
+
+![Example showcase](./assets/showcase.gif)
